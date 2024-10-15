@@ -5,16 +5,18 @@ using Rise.Services.Products;
 using Rise.Shared.Products;
 using Serilog.Events;
 
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateLogger();
-
 try
 {
     Log.Information("Starting up Server");
     var builder = WebApplication.CreateBuilder(args);
+
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .Enrich.FromLogContext()
+        .WriteTo.Console()
+        .WriteTo.ApplicationInsights(connectionString: builder.Configuration.GetConnectionString("ApplicationInsights"), TelemetryConverter.Traces)
+        .CreateLogger();
+
     builder.Services.AddSerilog();
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
@@ -32,7 +34,6 @@ try
 
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -41,9 +42,11 @@ try
 
     app.UseHttpsRedirection();
 
-    app.UseSerilogIngestion();
     app.UseBlazorFrameworkFiles();
     app.UseStaticFiles();
+
+    // After StaticFiles else we'll log that stuff too.
+    app.UseSerilogIngestion();//.UseSerilogRequestLogging();
 
     app.UseRouting();
 
